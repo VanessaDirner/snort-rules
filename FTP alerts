@@ -1,0 +1,4 @@
+## alert on FTP logins by lookign for 'USER' and 'PASS' 
+alert tcp any any -> 64.141.9.150 21 ( msg: "account used"; content: "USER"; content:"vanessa";flowbits:set,vanaccount;sid:10000;rev:1;)
+
+alert tcp any any -> 64.141.9.10 21 (msg:"super secret password used"; content: "PASS"; content:"password";sid:10001;rev:1;)
