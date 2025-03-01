@@ -1,0 +1,52 @@
+## these rules are for looking at tftp traffic and finding attempts to transfer word files with key words in them. This was to learn how to chain rules using flowbits.
+
+## THIS SECTION IS IP ## 
+## NETWORK TRANSFER TYPES ##  
+
+## check by looking for opcode Read Request in Hex - confirmed this works as-is
+alert ip any any -> any any (msg: "tftp traffic found - detected opcode for Read Request  -vd"; content: "|00 01|"; depth:2; flowbits: set, tftp, tftpkeyword; sid:100023; rev:1;)
+alert ip any any -> any any (msg: "tftp traffic found - detected opcode for transfer -vd"; content: "|00 03|";  flowbits: set, tftp, tftpkeyword;  sid: 100099; rev:1;)
+
+## FILE TYPES ##
+## alert if specify file type hex header found
+alert ip any any  -> any any (msg:"Open Office XML File Transfer Detected -vd"; content:"|50 4B 03 04|"; flowbits: set, worddoc, tftpkeyword; flowbits: noalert;  sid:100025; rev:1 )
+## alert of file hex headers
+alert ip any any -> any any (msg: "ms word 2003 header found -vd"; content:"|D0 CF 11 E0 A1 B1 1A E1|"; flowbits: set,  worddoc, tftpkeyword; flowbits: noalert; sid:100027; rev:1;)
+## mentions that it's a wiord doc
+alert ip any any -> any any (msg: "found reference to microsoft word"; content:"Microsoft Office Word"; flowbits: set, worddoc, tftpkeyword; flowbits: noalert; sid:100028; rev:1;)
+## /word/media/image
+alert ip any any -> any any (msg: "media location for word docs found" content:"/word/media/image"; flowbits: set, worddoc, tftpkeyword; flowbits: noalert; sid: 100098; rev:1)
+
+## KEYWORDS ##
+## check for exam question ideas in file as content
+alert ip any any -> any any (msg: "found key words in this packet being transferred"; content:"exam",nocase; content:"question", nocase; content:"idea", nocase; flowbits: set, keyword, keywordorimage;  sid:10030; rev:1;)
+## even after renaming a file to txt it still might contain keywords ## check for exam keywords or John's name in file content 
+alert ip any any -> any any (msg: "found 1 or more key words in this packet being transferred -vd"; pcre:"/exam|question|idea|quiz|multiple/i"; flowbits: set, keyword, keywordorimage; sid:100029; rev:2;)
+alert ip any any -> any any (msg: "INFO - found content that mentions john"; pcre:"/john/i"; sid: 1002020; rev: 1;)
+## DATA ##
+alert ip  any any -> any any (msg:"PNG File Transfer Detected -vd"; content:"|89 50 4E 47 0D 0A 1A 0A|"; flowbits: set, image, keywordorimage;   sid:100026; rev:1)
+
+
+## check for hidden file inside of the words docs 
+
+## think of other scnearios
+
+## something to do with HTTP and cookies
+
+
+
+## FLOWBIT ALERTS ##
+
+## check if png or keyword content found
+alert ip any any -> any any (msg: "FYI - EITHER A KEYWORD OR PNG FILE FOUND WITHIN CONTENTS"; flowbits: isset, keyword|image; flowbits: set, examcontent, tftpkeyword; flowbits: reset, keywordorimage; sid: 100040; rev: 1;)
+                                                                                                # flowbits: isnotset, alreadyrun; lowbits: set, alreadyrun, keywordorimage; 
+## send alert that a file is likely being transferred by tftp and contains exam questions
+alert ip any any -> any any (msg: "ALERT - WORD FILE WITH EXAM QUESTIONS WAS TRANSFERRED BY TFTP!!";  flowbits: isset, all, tftpkeyword; flowbits: reset, examcontent; flowbits: reset, ftp; sid: 100051; rev:1; )
+alert ip any any -> any any (msg: "ALERT - WHAT'S THAT? JOHN'S BEEN FOUND IN THE PIPES. A FILE TRANSFERED WITH KEYWORDS- UKNOWN METHOD"; flowbits: isset, worddoc; flowbits: isset, examcontent; flowbits: isnotset, tftp; sid: 10057; rev: 1; )
+## file is likely benign but transferred
+alert ip any any -> any any (msg: "INFO - a file that does NOT contain word or relevant information was transferred by tftp  :)"; flowbits: isset, tftp; flowbits: isnotset, examcontent; flowbits: isnotset, worddoc; sid: 100056; rev:1;)
+#flowbits: isnotset, alerted; flowbits: set, alerted, tftpkeyword; 
+#alert ip any any -> any any (msg: "ALERT - WORD FILE WITH IMAGES WAS TRANSFERRED BY TFTP!!"; flowbits: isset, all, )
+#alert ip any any -> any any (msg: "ALERT - SOMETHING NOT SET"; flowbits: isnotset, any, tftpkeyword; sid: 100052; rev:1;)
+
+
